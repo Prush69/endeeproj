@@ -1,5 +1,6 @@
 import argparse
 import json
+import random
 from typing import List, Dict, Any, Optional
 from datasets import load_dataset # type: ignore
 from sentence_transformers import SentenceTransformer # type: ignore
@@ -44,16 +45,27 @@ def main() -> None:
     embeddings = model.encode(texts, show_progress_bar=True)
 
     print("Pushing to Endee vector database...")
+    domains: List[str] = ["Computer Vision", "Natural Language Processing", "Reinforcement Learning", "Healthcare", "Robotics"]
     vectors: List[Dict[str, Any]] = []
     for i, (row, emb) in enumerate(zip(docs, embeddings)):
-        meta: Dict[str, str] = {
+        # Generate mock metadata for demonstration purposes
+        mock_year = random.randint(2018, 2024)
+        mock_domain = random.choice(domains)
+
+        meta: Dict[str, Any] = {
             "title": row.get("title", f"Document {i}"),
-            "text": row.get("text", "")
+            "text": row.get("text", ""),
+            "year": mock_year,
+            "domain": mock_domain
         }
         vectors.append({
             "id": str(row.get("_id", i)),
             "vector": emb.tolist(),
-            "meta": json.dumps(meta) # Store structured metadata as JSON string
+            "meta": json.dumps(meta), # Store structured metadata as JSON string
+            "filter": {
+                "year": mock_year,
+                "domain": mock_domain
+            }
         })
         
         # Batch insert every 50

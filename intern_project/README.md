@@ -14,24 +14,27 @@ This pipeline bridges state-of-the-art NLP models with efficient vector retrieva
 2. **Data Ingestion (`ingest.py`)**:
    - Downloads and preprocesses the document corpus.
    - Computes embeddings iteratively.
-   - Serializes document metadata alongside vector arrays.
+   - Serializes document metadata alongside vector arrays, injecting mock metadata (`year` and `domain`).
    - Pushes batches of vectors into the vector index to ensure efficient network payload sizes.
 3. **Vector Storage & Retrieval (Endee Database)**:
    - Receives vectorized documents and metadata.
    - Constructs an optimized **HNSW (Hierarchical Navigable Small World)** graph using cosine distance.
-   - Performs ultra-fast approximate nearest neighbor (ANN) searches upon request.
+   - Performs ultra-fast approximate nearest neighbor (ANN) searches upon request, with support for strict payload filtering (e.g., year, domain).
 4. **API Client (`endee_client.py`)**:
-   - A robust Python API wrapper that communicates with the Endee C++ backend via RESTful HTTP requests.
-5. **Search Interface (`search.py`)**:
-   - Serves as the user-facing CLI. Embeds incoming queries, retrieves $k$-nearest neighbors from Endee, decodes the associated JSON metadata, and presents formatted contextual abstracts.
+   - A robust Python API wrapper that communicates with the Endee C++ backend via RESTful HTTP requests, natively supporting search payload filters.
+5. **Search Interface & RAG Pipeline (`search.py`)**:
+   - Serves as the user-facing CLI. Embeds incoming queries and optional filters.
+   - Retrieves $k$-nearest neighbors from Endee.
+   - Executes a local LLM (`google/flan-t5-base`) via `transformers` on the retrieved context texts to synthesize a direct answer.
 
 ## Utilizing the Endee Vector Database
 
-**Endee** was chosen for this project due to its low-latency search characteristics and its native ability to tie rich, unstructured JSON metadata directly to the vector nodes.
+**Endee** was chosen for this project due to its low-latency search characteristics and its native ability to tie rich, unstructured JSON metadata and payload filters directly to the vector nodes.
 
 Within this project, Endee handles:
 * **Index Creation**: We instantiate an index specifically tuned for `cosine` space with the precise dimensionality (`dim=384`) required by the MiniLM model.
-* **Vector + Meta Storage**: We take advantage of Endee's `meta` payload to inject structured JSON (Title, Abstract Text) directly into the index. This removes the need for a secondary relational database to map vector IDs back to human-readable text.
+* **Vector + Meta Storage**: We take advantage of Endee's `meta` payload to inject structured JSON (Title, Abstract Text, Year, Domain) directly into the index.
+* **Payload Filtering**: Endee supports restricting the HNSW graph search to specific payload matches. Queries passed with `--year` or `--domain` are natively resolved by Endee's query engine during execution.
 * **Similarity Search**: Queries are sent as raw float arrays to the `/search` endpoint, which traverses the internal HNSW graph and rapidly returns the top $K$ most similar documents and their scores.
 
 ## Setup & Execution Instructions
@@ -81,9 +84,9 @@ python ingest.py --num_docs 100 --index ml_papers
 ```
 *(This will download the corpus, load the MiniLM weights, compute embeddings, and execute batch inserts to the Endee server).*
 
-### 4. Perform Semantic Queries
-Execute natural language searches against the ingested literature to retrieve relevant abstracts.
+### 4. Perform Semantic Queries & RAG Synthesis
+Execute natural language searches against the ingested literature to retrieve relevant abstracts and synthesize answers using a local LLM. Add payload filters to restrict the search.
 
 ```bash
-python search.py "What is deep learning used for in healthcare?" --k 3
+python search.py "What is deep learning used for in healthcare?" --k 3 --domain "Healthcare"
 ```

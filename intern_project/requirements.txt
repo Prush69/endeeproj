@@ -2,3 +2,5 @@ requests
 datasets
 sentence-transformers>=2.7.0
 torch
+transformers
+accelerate

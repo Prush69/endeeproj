@@ -97,22 +97,25 @@ class EndeeClient:
             print(f"Response: {e.response.text if hasattr(e, 'response') and e.response else 'N/A'}")
             return {}
 
-    def search(self, index_name: str, query_vector: List[float], k: int = 5) -> Dict[str, Any]:
+    def search(self, index_name: str, query_vector: List[float], k: int = 5, filter: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Searches for the top-k nearest neighbors to a query vector in a specified index.
 
         Args:
             index_name (str): The name of the index to search.
             query_vector (List[float]): The vector to search for.
             k (int, optional): The number of nearest neighbors to retrieve. Defaults to 5.
+            filter (Optional[Dict[str, Any]], optional): Optional payload filter to restrict the search. Defaults to None.
 
         Returns:
             Dict[str, Any]: A dictionary containing the search results from the server.
         """
         url = f"{self.base_url}/api/v1/index/{index_name}/search"
-        payload = {
+        payload: Dict[str, Any] = {
             "k": k,
             "vector": query_vector
         }
+        if filter is not None:
+            payload["filter"] = filter
         try:
             response = requests.post(url, json=payload, headers=self.headers)
             response.raise_for_status()
