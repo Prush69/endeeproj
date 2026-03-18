@@ -1,10 +1,22 @@
 import argparse
 import json
-from datasets import load_dataset
-from sentence_transformers import SentenceTransformer
+from typing import List, Dict, Any, Optional
+from datasets import load_dataset # type: ignore
+from sentence_transformers import SentenceTransformer # type: ignore
 from endee_client import EndeeClient
 
-def main():
+def main() -> None:
+    """Ingests ML papers into the Endee vector database.
+
+    This function parses command-line arguments, connects to the Endee server,
+    loads the `sentence-transformers/all-MiniLM-L6-v2` embedding model,
+    and downloads the `mteb/scifact` dataset. It then computes dense embeddings
+    for the text content and inserts the vectors in batches into the specified
+    Endee index.
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(description="Ingest ML papers into Endee")
     parser.add_argument("--num_docs", type=int, default=100, help="Number of documents to ingest")
     parser.add_argument("--index", type=str, default="ml_papers", help="Endee index name")
@@ -28,13 +40,13 @@ def main():
     docs = dataset.select(range(min(args.num_docs, len(dataset))))
 
     print(f"Encoding {len(docs)} documents...")
-    texts = [f"{row['title']} {row['text']}" for row in docs]
+    texts: List[str] = [f"{row['title']} {row['text']}" for row in docs]
     embeddings = model.encode(texts, show_progress_bar=True)
 
     print("Pushing to Endee vector database...")
-    vectors = []
+    vectors: List[Dict[str, Any]] = []
     for i, (row, emb) in enumerate(zip(docs, embeddings)):
-        meta = {
+        meta: Dict[str, str] = {
             "title": row.get("title", f"Document {i}"),
             "text": row.get("text", "")
         }
