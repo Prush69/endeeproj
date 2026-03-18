@@ -1,14 +1,33 @@
-import requests
+import requests # type: ignore
 from typing import List, Dict, Any, Optional
 import sys
 
 class EndeeClient:
-    def __init__(self, base_url: str = "http://localhost:8080"):
-        self.base_url = base_url.rstrip("/")
-        self.headers = {"Content-Type": "application/json"}
+    """Client to interact with the Endee vector database API.
+
+    Attributes:
+        base_url (str): The base URL of the Endee server.
+        headers (Dict[str, str]): HTTP headers to use for requests.
+    """
+
+    def __init__(self, base_url: str = "http://localhost:8080") -> None:
+        """Initializes the EndeeClient.
+
+        Args:
+            base_url (str, optional): The base URL of the Endee server. Defaults to "http://localhost:8080".
+        """
+        self.base_url: str = base_url.rstrip("/")
+        self.headers: Dict[str, str] = {"Content-Type": "application/json"}
         
     def ping(self) -> bool:
-        """Check if the Endee server is running and accessible."""
+        """Checks if the Endee server is running and accessible.
+
+        Returns:
+            bool: True if the server is reachable and returns a 200 status code, False otherwise.
+
+        Raises:
+            SystemExit: If a connection error occurs.
+        """
         try:
             response = requests.get(f"{self.base_url}/api/v1/health", timeout=5)
             if response.status_code == 200:
@@ -23,7 +42,17 @@ class EndeeClient:
             sys.exit(1)
 
     def create_index(self, index_name: str, dim: int, space_type: str = "cosine", m: int = 16) -> bool:
-        """Create a new index in Endee."""
+        """Creates a new index in the Endee database.
+
+        Args:
+            index_name (str): The name of the index to create.
+            dim (int): The dimensionality of the vectors to be stored in the index.
+            space_type (str, optional): The distance metric to use (e.g., 'cosine', 'l2', 'ip'). Defaults to "cosine".
+            m (int, optional): The number of bi-directional links created for every new element during insertion (M parameter in HNSW). Defaults to 16.
+
+        Returns:
+            bool: True if the index was successfully created or already exists, False otherwise.
+        """
         url = f"{self.base_url}/api/v1/index/create"
         payload = {
             "index_name": index_name,
@@ -44,9 +73,16 @@ class EndeeClient:
             return False
 
     def insert_vectors(self, index_name: str, vectors: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Insert batches of vectors.
-        vectors list should contain dict items with keys: 'id', 'vector', 'meta' (optional), 'filter' (optional)
+        """Inserts a batch of vectors into a specified index.
+
+        Args:
+            index_name (str): The name of the index to insert vectors into.
+            vectors (List[Dict[str, Any]]): A list of dictionaries representing the vectors to insert.
+                Each dictionary should contain the keys: 'id' (str), 'vector' (List[float]),
+                and optionally 'meta' (str) and 'filter' (Dict[str, Any]).
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the response from the server.
         """
         url = f"{self.base_url}/api/v1/index/{index_name}/vector/insert"
         try:
@@ -62,7 +98,16 @@ class EndeeClient:
             return {}
 
     def search(self, index_name: str, query_vector: List[float], k: int = 5) -> Dict[str, Any]:
-        """Search for top-k nearest neighbors."""
+        """Searches for the top-k nearest neighbors to a query vector in a specified index.
+
+        Args:
+            index_name (str): The name of the index to search.
+            query_vector (List[float]): The vector to search for.
+            k (int, optional): The number of nearest neighbors to retrieve. Defaults to 5.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the search results from the server.
+        """
         url = f"{self.base_url}/api/v1/index/{index_name}/search"
         payload = {
             "k": k,
