@@ -1,0 +1,7 @@
+requests
+datasets
+sentence-transformers>=2.7.0
+torch
+msgpack
+streamlit
+pandas
