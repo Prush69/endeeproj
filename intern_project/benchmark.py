@@ -6,7 +6,11 @@ from endee_client import EndeeClient
 def main():
     print("=== Endee Vector Database Performance Benchmark ===")
     client = EndeeClient()
-    if not client.ping():
+    try:
+        if not client.ping():
+            return
+    except ConnectionError as e:
+        print(f"Error: {e}")
         return
 
     index_name = "benchmark_idx"
@@ -16,7 +20,7 @@ def main():
     client.create_index(index_name, dim, "cosine")
 
     print("\n[2] Benchmarking Insertion Throughput...")
-    num_vectors = 1000
+    num_vectors = 5000
     batch_size = 500
     
     vectors = []
