@@ -1,33 +1,6 @@
-**Note: This project is built on a forked version of the Endee repository as per the evaluation guidelines, and the original repo has been starred.**
-
 # Endee RAG System: Semantic Research Assistant
 
-## Project Overview and Problem Statement
-Navigating the rapidly growing volume of machine learning literature is a significant challenge for researchers and engineers. This project addresses that problem by implementing a Semantic Research Assistant, a top-tier retrieval-augmented generation (RAG) and semantic search pipeline. Built upon the extremely fast **Endee Vector Database**, this assistant enables users to instantly query, filter, and synthesize insights from dense AI research papers, transforming how knowledge is discovered.
-
-## System Design / Technical Approach
-The architecture follows a robust, end-to-end RAG pipeline:
-1. **Data Ingestion:** An offline dataset of ML papers is enriched with mock metadata (`year`, `author`) via `augment_dataset.py`.
-2. **Embedding Generation:** The text is embedded into high-dimensional vector space using `sentence-transformers`.
-3. **Vector Storage:** Dense vectors, sparse features, and metadata payloads are batch-inserted into the Endee database via a highly optimized, connection-pooled Python client (`endee_client.py`).
-4. **Retrieval & UI:** Users query the system via an interactive Streamlit frontend (`app.py`), which leverages Endee's Hybrid Search (dense + sparse) and metadata filtering to retrieve the most relevant papers. An experimental `langchain_agent.py` also demonstrates Endee's capability as an agentic memory layer.
-
-```text
-[Offline JSON Dataset] --> [augment_dataset.py] --> [Enriched JSON]
-                                                          |
-                                                          v
-                                                    [ingest.py] (Sentence Transformers)
-                                                          | (Vectors + Metadata)
-                                                          v
-                                                [Endee Vector Database]
-                                                          ^
-                                                          | (Hybrid Search / Filter Queries)
-                                                          v
-                                     [Streamlit UI (app.py) / CLI (search.py)]
-```
-
-## Explanation of How Endee is Used
-Endee was chosen as the core infrastructure due to its ultra-fast C++ backend and seamless local deployment. By utilizing its official Docker image, the database is instantly available without complex environment configurations. This project leverages Endee's advanced capabilities, including its `cosine` space indices for dense retrieval, payload filtering for metadata-aware searches, and Hybrid Search capabilities to combine exact keyword matching with semantic intent, providing an enterprise-grade search experience.
+This intern project implements a top-tier retrieval-augmented generation (RAG) and semantic search pipeline using the extremely fast **Endee Vector Database**. It embeds actual machine learning papers using `sentence-transformers` and demonstrates production-ready API integration, benchmarking, and a graphical user interface.
 
 ## Premium Features Included
 - **Super-Fast Offline Dataset**: Ingestion completes instantly using a pre-packaged JSON dataset instead of downloading gigabytes from HuggingFace.

@@ -5,7 +5,3 @@ torch
 msgpack
 streamlit
 pandas
-langchain-core
-pydantic
-langchain
-langchain-community
