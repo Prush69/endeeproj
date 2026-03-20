@@ -3,6 +3,7 @@ import uuid
 import random
 from endee_client import EndeeClient
 
+
 def main():
     print("=== Endee Vector Database Performance Benchmark ===")
     client = EndeeClient()
@@ -54,6 +55,8 @@ def main():
     print(f"--> Search completed {num_queries} synthetic queries.")
     print(f"--> Average KNN Search Latency: {avg_latency:.2f} ms per query")
     print("\nBenchmark completed. Demonstrates massive scalability!")
+
+    client.close()
 
 if __name__ == "__main__":
     main()

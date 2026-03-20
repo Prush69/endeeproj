@@ -44,15 +44,17 @@ def main() -> None:
     filter_by_year = st.sidebar.checkbox("Filter by Year")
     year_filter = None
     if filter_by_year:
-        year_filter = st.sidebar.slider("Select Year", 2017, 2024, 2024)
+        year_filter = st.sidebar.slider("Select Year", 2013, 2024, 2020)
 
     filter_by_author = st.sidebar.checkbox("Filter by Author")
     author_filter = None
     if filter_by_author:
         authors = [
-            "A. Vaswani", "Y. LeCun", "G. Hinton", "Y. Bengio",
-            "I. Goodfellow", "K. He", "J. Redmon", "T. Chen",
-            "A. Karpathy", "F. Chollet"
+            "Ashish Vaswani", "Jacob Devlin", "Tom B. Brown",
+            "David Silver", "Kaiming He", "Ian Goodfellow",
+            "Volodymyr Mnih", "Diederik P. Kingma", "Joseph Redmon",
+            "Tomas Mikolov", "Mark Chen", "Long Ouyang",
+            "Patrick Lewis", "Hanwen Liu"
         ]
         author_filter = st.sidebar.selectbox("Select Author", authors)
     

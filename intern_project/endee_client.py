@@ -9,7 +9,7 @@ class EndeeClient:
     Implements connection pooling for high performance and supports advanced
     features like Hybrid Search and Payload Filtering.
     """
-    def __init__(self, base_url: str = "http://localhost:8080"):
+    def __init__(self, base_url: str = "http://127.0.0.1:8080"):
         """
         Initializes the EndeeClient.
 
@@ -129,10 +129,20 @@ class EndeeClient:
         }
 
         if sparse_vector is not None:
-            payload["sparse_vector"] = sparse_vector
+            # Endee API expects sparse_indices (uint32[]) and sparse_values (float[])
+            # Convert from {word: score} dict using hash-based indices
+            indices = [abs(hash(word)) % (2**31) for word in sparse_vector.keys()]
+            values = list(sparse_vector.values())
+            payload["sparse_indices"] = indices
+            payload["sparse_values"] = values
 
         if filter_dict is not None:
-            payload["filter"] = filter_dict
+            # Endee API expects filter as a JSON string containing an array:
+            # [{"field": {"$eq": value}}, ...]
+            filter_array = []
+            for field, value in filter_dict.items():
+                filter_array.append({field: {"$eq": value}})
+            payload["filter"] = json.dumps(filter_array)
 
         try:
             response = self.session.post(url, json=payload)
@@ -142,9 +152,13 @@ class EndeeClient:
             parsed_hits = []
             if "application/msgpack" in content_type:
                 raw_data = msgpack.unpackb(response.content, raw=False)
-                if isinstance(raw_data, list) and len(raw_data) > 0 and isinstance(raw_data[0], list):
-                    vector_results = raw_data[0]
-                    for hit in vector_results:
+                if isinstance(raw_data, list) and len(raw_data) > 0:
+                    # Determine the structure: either a flat list of [score, id, meta]
+                    # or a nested list [[score, id, meta], ...] wrapped in an outer list
+                    items = raw_data
+                    if len(raw_data) == 1 and isinstance(raw_data[0], list) and len(raw_data[0]) > 0 and isinstance(raw_data[0][0], list):
+                        items = raw_data[0]
+                    for hit in items:
                         if isinstance(hit, list) and len(hit) >= 3:
                             meta_raw = hit[2]
                             meta_str = meta_raw.decode('utf-8') if isinstance(meta_raw, bytes) else str(meta_raw)
@@ -197,6 +211,10 @@ class EndeeClient:
             print(f"Error searching vectors: {e}")
             print(f"Response: {e.response.text if hasattr(e, 'response') and e.response else 'N/A'}")
             return []
+
+    def close(self) -> None:
+        """Explicitly close the HTTP session to prevent script hang on exit."""
+        self.session.close()
 
 if __name__ == "__main__":
     # Standard guard just in case someone executes this directly

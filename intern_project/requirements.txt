@@ -5,5 +5,4 @@ msgpack
 streamlit
 langchain-core
 pydantic
-langchain
-langchain-community
+pytest

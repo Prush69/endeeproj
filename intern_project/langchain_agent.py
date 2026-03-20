@@ -1,12 +1,21 @@
 import json
+import os
+import warnings
+import logging
 from typing import List, Any
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
+from langchain_core.prompts import PromptTemplate
 from pydantic import Field
 from sentence_transformers import SentenceTransformer
-from langchain.chains import RetrievalQA
-from langchain_community.llms import FakeListLLM  # Using a fake LLM to avoid needing API keys for the demo
 from endee_client import EndeeClient
+
+# --- SUPPRESS HUGGINGFACE NOISE ---
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+
 
 class EndeeRetriever(BaseRetriever):
     """
@@ -56,13 +65,15 @@ class EndeeRetriever(BaseRetriever):
 
         return documents
 
+
 def main() -> None:
     """
-    Demonstrates the custom EndeeRetriever in a simple LangChain pipeline,
-    setting up a conversational RetrievalQA chain.
+    Demonstrates the custom EndeeRetriever in a RAG pipeline.
+    Uses a simple template-based generation approach with retrieved context
+    from Endee, showing its utility as an agentic memory layer.
     """
-    print("Initializing Endee Retriever...")
-    retriever = EndeeRetriever(k=2)
+    print("Initializing PyTorch and loading AI Embedding model (Cold Start)...")
+    retriever = EndeeRetriever(k=3)
 
     try:
         if not retriever.client.ping():
@@ -75,47 +86,74 @@ def main() -> None:
     query = "How do attention mechanisms improve neural networks?"
     print(f"\nQuerying Endee for: '{query}'")
 
+    # Step 1: Retrieve relevant documents from Endee
     docs = retriever.invoke(query)
 
     if not docs:
         print("No documents retrieved. Have you ingested data into Endee?")
         return
 
-    print(f"\nRetrieved {len(docs)} documents:")
+    print(f"\nRetrieved {len(docs)} documents from Endee:")
     for i, doc in enumerate(docs, 1):
         print(f"\n--- Document {i} ---")
         print(f"Title: {doc.metadata.get('title')}")
         print(f"Author: {doc.metadata.get('author')} | Year: {doc.metadata.get('year')}")
         print(f"Content snippet: {doc.page_content[:150]}...")
 
-    print("\n" + "="*50)
-    print("Demonstrating RetrievalQA Chain with Endee")
-    print("="*50)
+    # Step 2: Demonstrate RAG-style generation using retrieved context
+    print("\n" + "="*60)
+    print("Demonstrating RAG Pipeline with Endee as Retriever")
+    print("="*60)
 
-    # We use a Fake LLM here so the demo runs perfectly locally without OpenAI/Anthropic API keys,
-    # but in a real scenario you would drop in ChatOpenAI() or similar.
-    responses = [
-        "Based on the retrieved papers, attention mechanisms allow neural networks to dynamically "
-        "focus on different parts of the input sequence, overcoming the bottleneck of fixed-length context vectors. "
-        "This significantly improves performance on tasks like machine translation."
-    ]
-    llm = FakeListLLM(responses=responses)
+    # Build context from retrieved documents
+    context_parts = []
+    for doc in docs:
+        title = doc.metadata.get("title", "Unknown")
+        author = doc.metadata.get("author", "Unknown")
+        year = doc.metadata.get("year", "N/A")
+        context_parts.append(
+            f"[{title} by {author}, {year}]: {doc.page_content}"
+        )
+    context = "\n\n".join(context_parts)
 
-    # Set up the RetrievalQA chain
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        return_source_documents=True
+    # RAG prompt template
+    rag_template = PromptTemplate(
+        template=(
+            "Based on the following research papers retrieved from the Endee vector database, "
+            "answer the question.\n\n"
+            "Context:\n{context}\n\n"
+            "Question: {question}\n\n"
+            "Answer (synthesized from retrieved papers):"
+        ),
+        input_variables=["context", "question"]
     )
 
+    # Format the prompt (in production, this would go to an LLM like GPT-4 or Claude)
+    formatted_prompt = rag_template.format(context=context, question=query)
+
     print(f"\nQuestion: {query}")
-    print("\nGenerating answer via QA Chain...")
+    print(f"\nGenerated RAG Prompt (ready for LLM):")
+    print("-" * 40)
+    print(formatted_prompt[:500])
+    if len(formatted_prompt) > 500:
+        print(f"... [{len(formatted_prompt) - 500} more characters]")
+    print("-" * 40)
 
-    result = qa_chain.invoke({"query": query})
+    # Simulated LLM answer (in production, replace with actual LLM call)
+    simulated_answer = (
+        "Based on the retrieved papers, attention mechanisms allow neural networks to dynamically "
+        "focus on different parts of the input sequence, overcoming the bottleneck of fixed-length "
+        "context vectors. The Transformer architecture (Vaswani et al., 2017) demonstrated that "
+        "attention alone can achieve state-of-the-art results, eliminating the need for recurrence. "
+        "This has been foundational for models like BERT and GPT."
+    )
 
-    print(f"\nAnswer: {result['result']}")
-    print(f"\nSource Documents Used: {len(result['source_documents'])}")
+    print(f"\nSimulated LLM Answer: {simulated_answer}")
+    print(f"\nSource Documents Used: {len(docs)}")
+    for i, doc in enumerate(docs, 1):
+        print(f"  [{i}] {doc.metadata.get('title')} ({doc.metadata.get('year')})")
+
+    retriever.client.close()
 
 if __name__ == "__main__":
     main()

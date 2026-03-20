@@ -1,20 +1,30 @@
-import argparse
 import json
+import os
+import warnings
+import logging
 from typing import Dict, Any
 from sentence_transformers import SentenceTransformer
 from endee_client import EndeeClient
 from ingest import compute_term_frequency
+
+# --- SUPPRESS HUGGINGFACE NOISE ---
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+
 
 def main() -> None:
     """
     Executes a semantic or hybrid search against the Endee Vector Database via CLI.
     Supports payload filtering by year or author.
     """
+    import argparse
     parser = argparse.ArgumentParser(description="Semantic Search for ML Papers")
     parser.add_argument("query", type=str, help="Search query")
     parser.add_argument("--k", type=int, default=3, help="Number of results to retrieve")
     parser.add_argument("--index", type=str, default="ml_papers", help="Endee index name")
-    parser.add_argument("--hybrid", action="store_true", help="Enable Hybrid Search (Dense + Sparse/BM25)")
+    parser.add_argument("--hybrid", action="store_true", help="Enable Hybrid Search (Dense + Sparse/TF)")
     parser.add_argument("--year", type=int, help="Filter results by publication year")
     parser.add_argument("--author", type=str, help="Filter results by exact author name")
     args = parser.parse_args()
@@ -27,7 +37,7 @@ def main() -> None:
         print(f"Error: {e}")
         return
 
-    print("Loading embedding model (all-MiniLM-L6-v2)...")
+    print("Initializing PyTorch and loading embedding model (Cold Start)...")
     model = SentenceTransformer("all-MiniLM-L6-v2")
 
     print(f"Searching Endee for: '{args.query}'")
@@ -57,6 +67,7 @@ def main() -> None:
 
     if not hits:
         print("No matching papers found.")
+        client.close()
         return
 
     for rank, hit in enumerate(hits, 1):
@@ -81,6 +92,8 @@ def main() -> None:
         print(f"Similarity Distance/Score: {score:.4f}")
         print(f"Abstract Snippet: {snippet}")
         print("-" * 60)
+
+    client.close()
 
 if __name__ == "__main__":
     main()
