@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any, Optional
 from sentence_transformers import SentenceTransformer
 from endee_client import EndeeClient
-from ingest import bm25_tokenize  # Reuse our mock tokenizer
+from ingest import compute_term_frequency
 
 st.set_page_config(page_title="Endee RAG Assistant", page_icon="🔍", layout="wide")
 
@@ -21,8 +21,12 @@ def main() -> None:
     st.markdown("A lightning-fast RAG pipeline showcasing the advanced capabilities of the **Endee Vector Database**.")
     
     client = EndeeClient()
-    if not client.ping():
-        st.error("Cannot connect to Endee server at localhost:8080! Please ensure Docker is running.")
+    try:
+        if not client.ping():
+            st.error("Cannot connect to Endee server at localhost:8080! Please ensure Docker is running.")
+            return
+    except ConnectionError as e:
+        st.error(f"Cannot connect to Endee server: {e}")
         return
         
     model = load_embedder()
@@ -34,7 +38,7 @@ def main() -> None:
     k = st.sidebar.slider("Number of results", 1, 10, 3)
 
     st.sidebar.subheader("Hybrid Search")
-    enable_hybrid = st.sidebar.toggle("Enable Hybrid Search (Dense + Sparse/BM25)", value=False)
+    enable_hybrid = st.sidebar.toggle("Enable Hybrid Search (Dense + Sparse/TF)", value=False)
 
     st.sidebar.subheader("Payload Metadata Filtering")
     filter_by_year = st.sidebar.checkbox("Filter by Year")
@@ -59,7 +63,7 @@ def main() -> None:
 
                 sparse_vector: Optional[Dict[str, float]] = None
                 if enable_hybrid:
-                    sparse_vector = bm25_tokenize(query)
+                    sparse_vector = compute_term_frequency(query)
 
                 filter_dict: Dict[str, Any] = {}
                 if filter_by_year and year_filter is not None:

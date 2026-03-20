@@ -3,7 +3,7 @@ import json
 from typing import Dict, Any
 from sentence_transformers import SentenceTransformer
 from endee_client import EndeeClient
-from ingest import bm25_tokenize  # Reuse our mock tokenizer
+from ingest import compute_term_frequency
 
 def main() -> None:
     """
@@ -20,7 +20,11 @@ def main() -> None:
     args = parser.parse_args()
 
     client = EndeeClient()
-    if not client.ping():
+    try:
+        if not client.ping():
+            return
+    except ConnectionError as e:
+        print(f"Error: {e}")
         return
 
     print("Loading embedding model (all-MiniLM-L6-v2)...")
@@ -32,7 +36,7 @@ def main() -> None:
     sparse_vector = None
     if args.hybrid:
         print("-> Hybrid Search Enabled")
-        sparse_vector = bm25_tokenize(args.query)
+        sparse_vector = compute_term_frequency(args.query)
 
     filter_dict: Dict[str, Any] = {}
     if args.year:

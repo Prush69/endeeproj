@@ -2,7 +2,6 @@ import requests
 import msgpack
 import json
 from typing import List, Dict, Any, Optional
-import sys
 
 class EndeeClient:
     """
@@ -29,6 +28,9 @@ class EndeeClient:
 
         Returns:
             bool: True if reachable, False otherwise.
+
+        Raises:
+            ConnectionError: If the server cannot be reached.
         """
         try:
             response = self.session.get(f"{self.base_url}/api/v1/health", timeout=5)
@@ -38,10 +40,8 @@ class EndeeClient:
             else:
                 print(f"Endee server returned status: {response.status_code}")
                 return False
-        except requests.exceptions.RequestException:
-            print(f"Connection error: Could not connect to Endee server at {self.base_url}.")
-            print("Please ensure the Endee server is running before continuing.")
-            sys.exit(1)
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Endee server unreachable at {self.base_url}. Please ensure it is running.") from e
 
     def create_index(self, index_name: str, dim: int, space_type: str = "cosine", m: int = 16) -> bool:
         """
@@ -168,9 +168,23 @@ class EndeeClient:
                         meta = json.loads(hit.get("meta", "{}"))
                         match = True
                         for k_filter, v_filter in filter_dict.items():
-                            if str(meta.get(k_filter)) != str(v_filter):
-                                match = False
-                                break
+                            meta_val = meta.get(k_filter)
+
+                            # Type-aware comparison
+                            if isinstance(v_filter, int) or isinstance(v_filter, float):
+                                try:
+                                    # Attempt to cast meta_val to float for numeric comparison
+                                    if float(meta_val) != float(v_filter):
+                                        match = False
+                                        break
+                                except (ValueError, TypeError):
+                                    match = False
+                                    break
+                            else:
+                                if str(meta_val) != str(v_filter):
+                                    match = False
+                                    break
+
                         if match:
                             filtered_hits.append(hit)
                     except json.JSONDecodeError:

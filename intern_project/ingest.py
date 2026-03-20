@@ -1,24 +1,21 @@
 import argparse
 import json
 import time
-import uuid
 from typing import Any, Dict, List
 from sentence_transformers import SentenceTransformer
 from endee_client import EndeeClient
 
-def bm25_tokenize(text: str) -> Dict[str, float]:
+def compute_term_frequency(text: str) -> Dict[str, float]:
     """
-    A simple mockup BM25 tokenization function to generate sparse vectors.
-    In a real scenario, you'd use a dedicated library like rank_bm25 or splade.
+    A simple term frequency tokenization function to generate sparse vectors.
+    This serves as a basic illustration for Hybrid Search sparse components.
 
     Args:
         text (str): The input text document.
 
     Returns:
-        Dict[str, float]: A dictionary mapping tokens to their mock BM25 score.
+        Dict[str, float]: A dictionary mapping tokens to their normalized term frequency.
     """
-    # Just a simple term frequency counter for demonstration purposes
-    # Endee's docs/sparse.md mentions passing a dictionary of word to float score
     import re
     from collections import Counter
     words = re.findall(r'\b\w+\b', text.lower())
@@ -27,7 +24,6 @@ def bm25_tokenize(text: str) -> Dict[str, float]:
 
     sparse_vec = {}
     for word, count in counts.items():
-        # A mock TF-IDF/BM25 score
         sparse_vec[word] = count / total_words
 
     return sparse_vec
@@ -43,7 +39,11 @@ def main() -> None:
 
     # Using our custom EndeeClient with connection pooling via requests.Session
     client = EndeeClient()
-    if not client.ping():
+    try:
+        if not client.ping():
+            return
+    except ConnectionError as e:
+        print(f"Error: {e}")
         return
 
     print("Loading AI Embedding model (all-MiniLM-L6-v2) from local cache...")
@@ -77,8 +77,8 @@ def main() -> None:
             "author": row.get("author", "Unknown")
         }
 
-        # We also generate a simple sparse vector (mock BM25) for Hybrid Search support
-        sparse_vector = bm25_tokenize(f"{row.get('title', '')} {row.get('text', '')}")
+        # We also generate a simple sparse vector (term frequency) for Hybrid Search support
+        sparse_vector = compute_term_frequency(f"{row.get('title', '')} {row.get('text', '')}")
 
         vector_data = {
             "id": f"doc_{i}",

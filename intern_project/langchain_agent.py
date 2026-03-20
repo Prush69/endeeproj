@@ -64,8 +64,12 @@ def main() -> None:
     print("Initializing Endee Retriever...")
     retriever = EndeeRetriever(k=2)
 
-    if not retriever.client.ping():
-        print("Endee server is not reachable. Exiting.")
+    try:
+        if not retriever.client.ping():
+            print("Endee server is not reachable. Exiting.")
+            return
+    except ConnectionError as e:
+        print(f"Error: {e}")
         return
 
     query = "How do attention mechanisms improve neural networks?"
